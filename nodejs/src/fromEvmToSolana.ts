@@ -53,10 +53,10 @@ async function baseToSolanaExample() {
   // Safety check: if executing transactions, require explicit receiver address
   if (configuration.evmPrivateKey && !configuration.solanaReceiverAddress) {
     console.log(
-      "❌ SAFETY: SOLANA_RECEIVER_ADDRESS must be set when executing transactions",
+      "❌ SAFETY: SOLANA_RECEIVER_ADDRESS must be set when executing transactions"
     );
     console.log(
-      "This prevents accidentally sending funds to a default address",
+      "This prevents accidentally sending funds to a default address"
     );
     console.log("Set SOLANA_RECEIVER_ADDRESS in your environment or .env file");
     return;
@@ -68,16 +68,17 @@ async function baseToSolanaExample() {
   try {
     // Step 1: Get the best quote
     console.log("\n📊 Getting cross-chain quote...");
-    const quoteResponse = await crossChainClient.getQuote({
+    const quoteResponse = await crossChainClient.getQuotes({
       originChain: CHAIN_IDS.base,
       destinationChain: CHAIN_IDS.solana,
       sellToken: TOKEN_ADDRESSES.WETH_BASE,
       buyToken: TOKEN_ADDRESSES.USDC_SOL,
       sellAmount,
-      sortRoutesBy: "price",
+      sortQuotesBy: "price",
       originAddress: userAddress,
       destinationAddress: receiverAddress,
       slippageBps: 100,
+      maxNumQuotes: 1,
     });
 
     if (!quoteResponse.liquidityAvailable) {
@@ -85,24 +86,26 @@ async function baseToSolanaExample() {
       return;
     }
 
-    const route = quoteResponse.route;
+    const quote = quoteResponse.quotes[0];
     console.log("✅ Quote received:");
-    console.log(`  💰 Send: ${Number(route.sellAmount) / 1e18} WETH`);
-    console.log(`  💱 Receive: ${Number(route.buyAmount) / 1e6} USDC`);
-    console.log(`  🛡️ Min Receive: ${Number(route.minBuyAmount) / 1e6} USDC`);
-    console.log(`  ⏱️ Estimated Time: ${route.estimatedTimeSeconds}s`);
+    console.log(`  💰 Send: ${Number(quote.sellAmount) / 1e18} WETH`);
+    console.log(`  💱 Receive: ${Number(quote.buyAmount) / 1e6} USDC`);
+    console.log(`  🛡️ Min Receive: ${Number(quote.minBuyAmount) / 1e6} USDC`);
+    console.log(`  ⏱️ Estimated Time: ${quote.estimatedTimeSeconds}s`);
 
-    // Display route steps and bridge provider
-    console.log(`  🔄 Steps: ${route.steps.length}`);
-    const bridgeStep = route.steps.find((step) => step.type === "bridge");
+    // Display quote steps and bridge provider
+    console.log(`  🔄 Steps: ${quote.steps.length}`);
+    const bridgeStep = quote.steps.find((step) => step.type === "bridge");
     if (bridgeStep && bridgeStep.provider) {
       console.log(`  🌉 Bridge Provider: ${bridgeStep.provider}`);
     }
 
-    route.steps.forEach((step, i) => {
+    quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
-          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${step.destinationChainId})`,
+          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${
+            step.destinationChainId
+          })`
         );
       } else {
         console.log(`    ${i + 1}. Swap on chain ${step.chainId}`);
@@ -110,22 +113,22 @@ async function baseToSolanaExample() {
     });
 
     // Check for balance issues first - skip everything if insufficient balance
-    if (route.issues.balance) {
+    if (quote.issues.balance) {
       console.log("❌ Insufficient balance detected");
-      console.log(`  🔧 Token: ${route.issues.balance.token}`);
-      console.log(`  💰 Required: ${route.issues.balance.expected}`);
-      console.log(`  💰 Available: ${route.issues.balance.actual}`);
+      console.log(`  🔧 Token: ${quote.issues.balance.token}`);
+      console.log(`  💰 Required: ${quote.issues.balance.expected}`);
+      console.log(`  💰 Available: ${quote.issues.balance.actual}`);
       console.log(
-        "\n⚠️  Cannot proceed with transaction - insufficient balance",
+        "\n⚠️  Cannot proceed with transaction - insufficient balance"
       );
       return;
     }
 
     // Check for issues and handle allowance
-    if (route.issues.allowance) {
+    if (quote.issues.allowance) {
       console.log("⚠️  Allowance issue detected - approval needed");
-      console.log(`  📍 Spender: ${route.issues.allowance.spender}`);
-      console.log(`  💰 Current allowance: ${route.issues.allowance.actual}`);
+      console.log(`  📍 Spender: ${quote.issues.allowance.spender}`);
+      console.log(`  💰 Current allowance: ${quote.issues.allowance.actual}`);
 
       if (walletClient) {
         console.log("\n🔧 Handling token approval...");
@@ -138,7 +141,7 @@ async function baseToSolanaExample() {
           abi: erc20Abi,
           functionName: "approve",
           args: [
-            route.issues.allowance.spender as `0x${string}`,
+            quote.issues.allowance.spender as `0x${string}`,
             BigInt(sellAmount),
           ],
         });
@@ -151,21 +154,21 @@ async function baseToSolanaExample() {
         });
         console.log("✅ Approval confirmed");
         console.log(
-          `🔗 View approval: https://basescan.org/tx/${approveTxHash}`,
+          `🔗 View approval: https://basescan.org/tx/${approveTxHash}`
         );
       }
     }
 
     // Step 2: Execute transaction (only if private key provided)
-    if (route.transaction.chainType === "evm" && walletClient) {
+    if (quote.transaction.chainType === "evm" && walletClient) {
       console.log("\n🚀 Executing transaction...");
 
       const txRequest = {
-        to: route.transaction.details.to as `0x${string}`,
-        data: route.transaction.details.data as `0x${string}`,
-        value: BigInt(route.transaction.details.value),
-        gas: route.transaction.details.gas
-          ? BigInt(route.transaction.details.gas)
+        to: quote.transaction.details.to as `0x${string}`,
+        data: quote.transaction.details.data as `0x${string}`,
+        value: BigInt(quote.transaction.details.value),
+        gas: quote.transaction.details.gas
+          ? BigInt(quote.transaction.details.gas)
           : undefined,
       };
 
@@ -204,25 +207,27 @@ async function baseToSolanaExample() {
             onUpdate: (status) => {
               const timestamp = new Date().toLocaleTimeString();
               console.log(
-                `[${timestamp}] 📊 Status: ${status.status}${status.subStatus ? ` (${status.subStatus})` : ""}`,
+                `[${timestamp}] 📊 Status: ${status.status}${
+                  status.subStatus ? ` (${status.subStatus})` : ""
+                }`
               );
 
               if (status.transactions.length > 1) {
                 console.log(
-                  `🔗 ${status.transactions.length} transactions found:`,
+                  `🔗 ${status.transactions.length} transactions found:`
                 );
                 status.transactions.forEach((tx, i) => {
                   const explorerUrl =
                     tx.chainId === 8453
                       ? `https://basescan.org/tx/${tx.txHash}`
                       : tx.chainId === 999999999991
-                        ? `https://solscan.io/tx/${tx.txHash}`
-                        : tx.txHash;
+                      ? `https://solscan.io/tx/${tx.txHash}`
+                      : tx.txHash;
                   console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl}`);
                 });
               }
             },
-          },
+          }
         );
 
         console.log(`\n🏁 Final Status: ${finalStatus.status}`);
@@ -239,8 +244,8 @@ async function baseToSolanaExample() {
               tx.chainId === 8453
                 ? `https://basescan.org/tx/${tx.txHash}`
                 : tx.chainId === 999999999991
-                  ? `https://solscan.io/tx/${tx.txHash}`
-                  : tx.txHash;
+                ? `https://solscan.io/tx/${tx.txHash}`
+                : tx.txHash;
             console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl} (${date})`);
           });
         } else {
@@ -252,21 +257,21 @@ async function baseToSolanaExample() {
       } catch (monitorError) {
         console.error(
           "⚠️  Monitoring failed, but transaction may still succeed:",
-          monitorError,
+          monitorError
         );
         console.log(
-          `You can manually check status at: https://basescan.org/tx/${txHash}`,
+          `You can manually check status at: https://basescan.org/tx/${txHash}`
         );
       }
-    } else if (route.transaction.chainType === "evm") {
+    } else if (quote.transaction.chainType === "evm") {
       console.log("\n💡 Transaction ready for execution:");
-      console.log(`  📍 To: ${route.transaction.details.to}`);
-      console.log(`  💎 Value: ${route.transaction.details.value} wei`);
+      console.log(`  📍 To: ${quote.transaction.details.to}`);
+      console.log(`  💎 Value: ${quote.transaction.details.value} wei`);
       console.log(
-        `  📝 Data: ${route.transaction.details.data.slice(0, 20)}...`,
+        `  📝 Data: ${quote.transaction.details.data.slice(0, 20)}...`
       );
       console.log(
-        "\n💡 To execute this transaction, provide EVM_PRIVATE_KEY in your environment",
+        "\n💡 To execute this transaction, provide EVM_PRIVATE_KEY in your environment"
       );
     }
   } catch (error) {

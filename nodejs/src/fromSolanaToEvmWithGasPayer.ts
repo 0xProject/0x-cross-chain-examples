@@ -2,11 +2,7 @@ import { config as dotenv } from "dotenv";
 import { Connection, VersionedTransaction, Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import { CrossChainClient } from "./crossChainClient";
-import {
-  loadConfig,
-  TOKEN_ADDRESSES,
-  CHAIN_IDS,
-} from "./config";
+import { loadConfig, TOKEN_ADDRESSES, CHAIN_IDS } from "./config";
 
 dotenv({ quiet: true });
 
@@ -28,7 +24,9 @@ async function solanaToBaseWithGasPayerExample() {
   }
 
   if (!configuration.solanaGasPayerPrivateKey) {
-    console.error("❌ SOLANA_GAS_PAYER_PRIVATE_KEY is required for this example");
+    console.error(
+      "❌ SOLANA_GAS_PAYER_PRIVATE_KEY is required for this example"
+    );
     process.exit(1);
   }
 
@@ -41,18 +39,22 @@ async function solanaToBaseWithGasPayerExample() {
 
   // Setup Solana connection and keypairs
   const connection = new Connection(configuration.rpcUrls.solana);
-  
+
   const privateKeyArray = bs58.decode(configuration.solanaPrivateKey);
   const keypair = Keypair.fromSecretKey(privateKeyArray);
   const userAddress = keypair.publicKey.toBase58();
 
-  const gasPayerPrivateKeyArray = bs58.decode(configuration.solanaGasPayerPrivateKey);
+  const gasPayerPrivateKeyArray = bs58.decode(
+    configuration.solanaGasPayerPrivateKey
+  );
   const gasPayerKeypair = Keypair.fromSecretKey(gasPayerPrivateKeyArray);
 
   // Ensure gas payer is different from user
   if (gasPayerKeypair.publicKey.equals(keypair.publicKey)) {
     console.error("❌ Gas payer must be different from transaction signer");
-    console.error("SOLANA_GAS_PAYER_PRIVATE_KEY cannot be the same as SOLANA_PRIVATE_KEY");
+    console.error(
+      "SOLANA_GAS_PAYER_PRIVATE_KEY cannot be the same as SOLANA_PRIVATE_KEY"
+    );
     process.exit(1);
   }
 
@@ -66,17 +68,18 @@ async function solanaToBaseWithGasPayerExample() {
   try {
     // Step 1: Get the best quote
     console.log("\n📊 Getting cross-chain quote...");
-    const quoteResponse = await crossChainClient.getQuote({
+    const quoteResponse = await crossChainClient.getQuotes({
       originChain: CHAIN_IDS.solana,
       destinationChain: CHAIN_IDS.base,
       sellToken: TOKEN_ADDRESSES.WSOL,
       buyToken: TOKEN_ADDRESSES.USDC_BASE,
       sellAmount,
-      sortRoutesBy: "price",
+      sortQuotesBy: "price",
       originAddress: userAddress,
       destinationAddress: receiverAddress,
       slippageBps: 100,
       gasPayer: gasPayerKeypair.publicKey.toBase58(),
+      maxNumQuotes: 1,
     });
 
     if (!quoteResponse.liquidityAvailable) {
@@ -84,24 +87,26 @@ async function solanaToBaseWithGasPayerExample() {
       return;
     }
 
-    const route = quoteResponse.route;
+    const quote = quoteResponse.quotes[0];
     console.log("✅ Quote received:");
-    console.log(`  💰 Send: ${Number(route.sellAmount) / 1e9} WSOL`);
-    console.log(`  💱 Receive: ${Number(route.buyAmount) / 1e6} USDC`);
-    console.log(`  🛡️  Min Receive: ${Number(route.minBuyAmount) / 1e6} USDC`);
-    console.log(`  ⏱️  Estimated Time: ${route.estimatedTimeSeconds}s`);
+    console.log(`  💰 Send: ${Number(quote.sellAmount) / 1e9} WSOL`);
+    console.log(`  💱 Receive: ${Number(quote.buyAmount) / 1e6} USDC`);
+    console.log(`  🛡️  Min Receive: ${Number(quote.minBuyAmount) / 1e6} USDC`);
+    console.log(`  ⏱️  Estimated Time: ${quote.estimatedTimeSeconds}s`);
 
-    // Display route steps and bridge provider
-    console.log(`  🔄 Steps: ${route.steps.length}`);
-    const bridgeStep = route.steps.find((step) => step.type === "bridge");
+    // Display quote steps and bridge provider
+    console.log(`  🔄 Steps: ${quote.steps.length}`);
+    const bridgeStep = quote.steps.find((step) => step.type === "bridge");
     if (bridgeStep && bridgeStep.provider) {
       console.log(`  🌉 Bridge Provider: ${bridgeStep.provider}`);
     }
 
-    route.steps.forEach((step, i) => {
+    quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
-          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${step.destinationChainId})`,
+          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${
+            step.destinationChainId
+          })`
         );
       } else {
         console.log(`    ${i + 1}. Swap on chain ${step.chainId}`);
@@ -109,35 +114,37 @@ async function solanaToBaseWithGasPayerExample() {
     });
 
     // Display gas costs for Solana
-    if (route.gasCosts.chainType === "svm") {
+    if (quote.gasCosts.chainType === "svm") {
       console.log(`  ⛽ Solana Transaction Fees (paid by gas payer):`);
-      console.log(`    🔹 Base Fee: ${Number(route.gasCosts.base) / 1e9} SOL`);
+      console.log(`    🔹 Base Fee: ${Number(quote.gasCosts.base) / 1e9} SOL`);
       console.log(
-        `    🔸 Priority Fee: ${route.gasCosts.priority ? Number(route.gasCosts.priority) / 1e9 : 0} SOL`,
+        `    🔸 Priority Fee: ${
+          quote.gasCosts.priority ? Number(quote.gasCosts.priority) / 1e9 : 0
+        } SOL`
       );
       console.log(
-        `    🔺 Total Fee: ${Number(route.gasCosts.total) / 1e9} SOL`,
+        `    🔺 Total Fee: ${Number(quote.gasCosts.total) / 1e9} SOL`
       );
     }
 
     // Step 2: Execute transaction
     console.log("\n🚀 Executing transaction...");
 
-    if (route.transaction.chainType !== "svm") {
+    if (quote.transaction.chainType !== "svm") {
       console.error("❌ Expected SVM transaction but got EVM transaction");
       return;
     }
 
-    const serializedTx = route.transaction.details.serializedTransaction;
+    const serializedTx = quote.transaction.details.serializedTransaction;
     const transactionBuffer = Buffer.from(serializedTx, "base64");
     const transaction = VersionedTransaction.deserialize(transactionBuffer);
 
     console.log("📋 Transaction details:");
     console.log(
-      `  📝 Instructions: ${transaction.message.compiledInstructions.length}`,
+      `  📝 Instructions: ${transaction.message.compiledInstructions.length}`
     );
     console.log(
-      `  🔑 Required signatures: ${transaction.message.header.numRequiredSignatures}`,
+      `  🔑 Required signatures: ${transaction.message.header.numRequiredSignatures}`
     );
 
     // Sign transaction with both keypairs (gas payer first as fee payer)
@@ -159,12 +166,12 @@ async function solanaToBaseWithGasPayerExample() {
         signature,
         ...(await connection.getLatestBlockhash()),
       },
-      "finalized",
+      "finalized"
     );
 
     if (confirmation.value.err) {
       console.error(
-        `❌ Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
+        `❌ Transaction failed: ${JSON.stringify(confirmation.value.err)}`
       );
       return;
     }
@@ -188,25 +195,27 @@ async function solanaToBaseWithGasPayerExample() {
           onUpdate: (status) => {
             const timestamp = new Date().toLocaleTimeString();
             console.log(
-              `[${timestamp}] 📊 Status: ${status.status}${status.subStatus ? ` (${status.subStatus})` : ""}`,
+              `[${timestamp}] 📊 Status: ${status.status}${
+                status.subStatus ? ` (${status.subStatus})` : ""
+              }`
             );
 
             if (status.transactions.length > 1) {
               console.log(
-                `🔗 ${status.transactions.length} transactions found:`,
+                `🔗 ${status.transactions.length} transactions found:`
               );
               status.transactions.forEach((tx, i) => {
                 const explorerUrl =
                   tx.chainId === 8453
                     ? `https://basescan.org/tx/${tx.txHash}`
                     : tx.chainId === 999999999991
-                      ? `https://solscan.io/tx/${tx.txHash}`
-                      : tx.txHash;
+                    ? `https://solscan.io/tx/${tx.txHash}`
+                    : tx.txHash;
                 console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl}`);
               });
             }
           },
-        },
+        }
       );
 
       console.log(`\n🏁 Final Status: ${finalStatus.status}`);
@@ -223,8 +232,8 @@ async function solanaToBaseWithGasPayerExample() {
             tx.chainId === 8453
               ? `https://basescan.org/tx/${tx.txHash}`
               : tx.chainId === 999999999991
-                ? `https://solscan.io/tx/${tx.txHash}`
-                : tx.txHash;
+              ? `https://solscan.io/tx/${tx.txHash}`
+              : tx.txHash;
           console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl} (${date})`);
         });
       } else {
@@ -236,10 +245,10 @@ async function solanaToBaseWithGasPayerExample() {
     } catch (monitorError) {
       console.error(
         "⚠️  Monitoring failed, but transaction may still succeed:",
-        monitorError,
+        monitorError
       );
       console.log(
-        `You can manually check status at: https://solscan.io/tx/${signature}`,
+        `You can manually check status at: https://solscan.io/tx/${signature}`
       );
     }
   } catch (error) {

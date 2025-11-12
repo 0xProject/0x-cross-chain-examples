@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-// Cross-chain routes request schema
-export const CrossChainRoutesRequestSchema = z.object({
+// Cross-chain quotes request schema
+export const CrossChainQuotesRequestSchema = z.object({
   originChain: z.union([z.string(), z.number()]),
   destinationChain: z.union([z.string(), z.number()]),
   sellToken: z.string(),
   buyToken: z.string(),
   sellAmount: z.string(),
-  sortRoutesBy: z.enum(["speed", "price"]),
+  sortQuotesBy: z.enum(["speed", "price"]),
   originAddress: z.string(),
   destinationAddress: z.string().optional(),
   slippageBps: z.number().optional().default(100),
@@ -16,7 +16,7 @@ export const CrossChainRoutesRequestSchema = z.object({
   feeRecipient: z.string().optional(),
   feeBps: z.number().min(0).max(10000).optional(),
   feeToken: z.string().optional(),
-  maxNumRoutes: z.number().min(1).max(10).optional().default(3),
+  maxNumQuotes: z.number().min(1).max(10).optional().default(3),
   gasPayer: z.string().optional(),
 });
 
@@ -36,18 +36,16 @@ export const FeesSchema = z.object({
 
 export const EvmGasCostsSchema = z.object({
   chainType: z.literal("evm"),
-  gasPrice: z.string().nullable().optional(),
-  maxFeePerGas: z.string().nullable().optional(),
-  maxPriorityFeePerGas: z.string().nullable().optional(),
-  gasLimit: z.string().optional(),
-  estimatedGasUsed: z.string().nullable().optional(),
+  gasPrice: z.string().nullable(),
+  gasLimit: z.string(),
+  totalNetworkFee: z.string().nullable(),
 });
 
 export const SvmGasCostsSchema = z.object({
   chainType: z.literal("svm"),
-  base: z.string().optional(),
-  priority: z.string().nullable().optional(),
-  total: z.string().optional(),
+  base: z.string(),
+  priority: z.string().nullable(),
+  total: z.string(),
 });
 
 export const GasCostsSchema = z.union([EvmGasCostsSchema, SvmGasCostsSchema]);
@@ -88,8 +86,6 @@ export const EvmTransactionSchema = z.object({
     gas: z.string().nullable(),
     gasPrice: z.string().nullable(),
     value: z.string(),
-    maxFeePerGas: z.string().nullable(),
-    maxPriorityFeePerGas: z.string().nullable(),
   }),
 });
 
@@ -128,7 +124,7 @@ export const IssuesSchema = z.object({
   invalidBridgesPassed: z.array(z.string()).optional(),
 });
 
-export const RouteSchema = z.object({
+export const QuoteSchema = z.object({
   sellAmount: z.string(),
   buyAmount: z.string(),
   minBuyAmount: z.string(),
@@ -138,11 +134,13 @@ export const RouteSchema = z.object({
   transaction: TransactionSchema,
   estimatedTimeSeconds: z.number(),
   issues: IssuesSchema,
+  quoteId: z.string(),
 });
 
-export const CrossChainRoutesResponseSchema = z.union([
+export const CrossChainQuotesResponseSchema = z.union([
   z.object({
     liquidityAvailable: z.literal(true),
+    allowanceTarget: z.string().nullable(),
     originChainId: z.number(),
     originChain: z.string(),
     destinationChainId: z.number(),
@@ -151,26 +149,8 @@ export const CrossChainRoutesResponseSchema = z.union([
     buyToken: z.string(),
     issues: IssuesSchema,
     zid: z.string(),
-    routes: z.array(RouteSchema).min(1),
-  }),
-  z.object({
-    liquidityAvailable: z.literal(false),
-    zid: z.string(),
-  }),
-]);
-
-export const CrossChainQuoteResponseSchema = z.union([
-  z.object({
-    liquidityAvailable: z.literal(true),
-    originChainId: z.number(),
-    originChain: z.string(),
-    destinationChainId: z.number(),
-    destinationChain: z.string(),
-    sellToken: z.string(),
-    buyToken: z.string(),
-    issues: IssuesSchema,
-    zid: z.string(),
-    route: RouteSchema,
+    routes: z.array(QuoteSchema).min(1).optional(),
+    quotes: z.array(QuoteSchema).min(1),
   }),
   z.object({
     liquidityAvailable: z.literal(false),
@@ -226,14 +206,8 @@ export const CrossChainStatusResponseSchema = z.object({
   zid: z.string(),
 });
 
-export type CrossChainRoutesRequest = z.infer<
-  typeof CrossChainRoutesRequestSchema
->;
-export type CrossChainRoutesResponse = z.infer<
-  typeof CrossChainRoutesResponseSchema
->;
-export type CrossChainQuoteResponse = z.infer<
-  typeof CrossChainQuoteResponseSchema
+export type CrossChainQuotesRequest = z.infer<
+  typeof CrossChainQuotesRequestSchema
 >;
 export type CrossChainStatusRequest = z.infer<
   typeof CrossChainStatusRequestSchema
@@ -241,7 +215,10 @@ export type CrossChainStatusRequest = z.infer<
 export type CrossChainStatusResponse = z.infer<
   typeof CrossChainStatusResponseSchema
 >;
-export type Route = z.infer<typeof RouteSchema>;
+export type CrossChainQuotesResponse = z.infer<
+  typeof CrossChainQuotesResponseSchema
+>;
+export type Quote = z.infer<typeof QuoteSchema>;
 export type Step = z.infer<typeof StepSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type Issues = z.infer<typeof IssuesSchema>;

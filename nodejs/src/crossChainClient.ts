@@ -1,11 +1,9 @@
 import {
-  CrossChainRoutesRequest,
-  CrossChainRoutesResponse,
-  CrossChainQuoteResponse,
+  CrossChainQuotesRequest,
+  CrossChainQuotesResponse,
+  CrossChainQuotesResponseSchema,
   CrossChainStatusRequest,
   CrossChainStatusResponse,
-  CrossChainRoutesResponseSchema,
-  CrossChainQuoteResponseSchema,
   CrossChainStatusResponseSchema,
 } from "./schemas";
 
@@ -19,12 +17,12 @@ export class CrossChainClient {
   }
 
   /**
-   * Get multiple routes for a cross-chain swap
+   * Get multiple quotes for a cross-chain swap
    */
-  async getRoutes(
-    request: CrossChainRoutesRequest,
-  ): Promise<CrossChainRoutesResponse> {
-    const url = new URL("/cross-chain/routes", this.baseUrl);
+  async getQuotes(
+    request: CrossChainQuotesRequest
+  ): Promise<CrossChainQuotesResponse> {
+    const url = new URL("/cross-chain/quotes", this.baseUrl);
 
     // Add query parameters
     Object.entries(request).forEach(([key, value]) => {
@@ -44,53 +42,19 @@ export class CrossChainClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to fetch routes: ${response.status} ${response.statusText}\n${errorText}`,
+        `Failed to fetch quotes: ${response.status} ${response.statusText}\n${errorText}`
       );
     }
 
     const data = await response.json();
-    return CrossChainRoutesResponseSchema.parse(data);
-  }
-
-  /**
-   * Get the best single route for a cross-chain swap
-   */
-  async getQuote(
-    request: Omit<CrossChainRoutesRequest, "maxNumRoutes">,
-  ): Promise<CrossChainQuoteResponse> {
-    const url = new URL("/cross-chain/quote", this.baseUrl);
-
-    // Add query parameters
-    Object.entries(request).forEach(([key, value]) => {
-      if (value !== undefined) {
-        url.searchParams.append(key, value.toString());
-      }
-    });
-
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        "0x-api-key": this.apiKey,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Failed to fetch quote: ${response.status} ${response.statusText}\n${errorText}`,
-      );
-    }
-
-    const data = await response.json();
-    return CrossChainQuoteResponseSchema.parse(data);
+    return CrossChainQuotesResponseSchema.parse(data);
   }
 
   /**
    * Get the status of a cross-chain transaction
    */
   async getStatus(
-    request: CrossChainStatusRequest,
+    request: CrossChainStatusRequest
   ): Promise<CrossChainStatusResponse> {
     const url = new URL("/cross-chain/status", this.baseUrl);
 
@@ -112,7 +76,7 @@ export class CrossChainClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to fetch status: ${response.status} ${response.statusText}\n${errorText}`,
+        `Failed to fetch status: ${response.status} ${response.statusText}\n${errorText}`
       );
     }
 
@@ -129,7 +93,7 @@ export class CrossChainClient {
       maxAttempts?: number;
       intervalMs?: number;
       onUpdate?: (status: CrossChainStatusResponse) => void;
-    } = {},
+    } = {}
   ): Promise<CrossChainStatusResponse> {
     const { maxAttempts = 60, intervalMs = 5000, onUpdate } = options;
 
@@ -171,7 +135,7 @@ export class CrossChainClient {
     }
 
     throw new Error(
-      `Transaction monitoring timed out after ${maxAttempts} attempts`,
+      `Transaction monitoring timed out after ${maxAttempts} attempts`
     );
   }
 }

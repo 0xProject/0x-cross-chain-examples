@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import RouteCard from "./RouteCard";
+import QuoteCard from "./QuoteCard";
 
-interface Route {
+interface Quote {
   id?: string;
   sellAmount: string;
   buyAmount: string;
@@ -15,7 +15,7 @@ interface Route {
   allowanceTarget: string;
   seqNum: number;
   displayIndex?: number;
-  route?: {
+  quote?: {
     sellAmount: string;
     buyAmount: string;
     minBuyAmount: string;
@@ -32,21 +32,17 @@ interface StreamingResult {
 }
 
 interface StreamEvent {
-  data: {
-    zid: string;
-    event: {
-      type: "route" | "result";
-      data: Route | StreamingResult;
-    };
+  zid?: string;
+  event: {
+    type: "quote" | "result" | "error";
+    data: Quote | StreamingResult | ErrorData;
   };
 }
 
-interface FatalError {
-  error: {
-    message: string;
-    code: string;
-    type: "fatal";
-  };
+interface ErrorData {
+  message: string;
+  code: string;
+  type?: "fatal";
 }
 
 interface StreamingQuoteProps {
@@ -70,7 +66,7 @@ export default function StreamingQuote({
   apiKey,
   autoStart = false,
 }: StreamingQuoteProps) {
-  const [routes, setRoutes] = useState<Route[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +82,7 @@ export default function StreamingQuote({
     }
 
     // Reset state
-    setRoutes([]);
+    setQuotes([]);
     setError(null);
     setIsComplete(false);
     setLiquidityAvailable(null);
@@ -102,7 +98,7 @@ export default function StreamingQuote({
       originAddress,
     });
 
-    const apiUrl = "https://api.0x.org/cross-chain/quote/stream";
+    const apiUrl = "https://staging.api.0x.org/cross-chain/quotes/stream";
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
@@ -151,40 +147,41 @@ export default function StreamingQuote({
             try {
               const data = JSON.parse(eventData);
               console.info("parseddata", data);
-              // Check if this is a fatal error
-              if ("error" in data) {
-                const fatalError = data as FatalError;
-                setError(`Fatal error: ${fatalError.error.message}`);
-                setIsStreaming(false);
-                setIsComplete(true);
-                return;
-              }
 
               const streamEvent = data as StreamEvent;
 
-              if (streamEvent.data.event.type === "route") {
-                const routeData = streamEvent.data.event.data as Route;
+              // Handle different event types
+              if (streamEvent.event.type === "error") {
+                const errorData = streamEvent.event.data as ErrorData;
+                const errorType =
+                  errorData.type === "fatal" ? "Fatal error" : "Error";
+                setError(`${errorType}: ${errorData.message}`);
+                setIsStreaming(false);
+                setIsComplete(true);
+                return;
+              } else if (streamEvent.event.type === "quote") {
+                const quoteData = streamEvent.event.data as Quote;
                 // Handle nested route structure from API
-                const route: Route = routeData.route
+                const quote: Quote = quoteData.quote
                   ? {
-                      ...routeData.route,
-                      allowanceTarget: routeData.allowanceTarget,
-                      id: streamEvent.data.zid,
+                      ...quoteData.quote,
+                      allowanceTarget: quoteData.allowanceTarget,
+                      id: streamEvent.zid,
                     }
                   : {
-                      ...routeData,
-                      id: streamEvent.data.zid,
+                      ...quoteData,
+                      id: streamEvent.zid,
                     };
 
-                setRoutes((prevRoutes) => {
-                  const newRoute = {
-                    ...route,
-                    displayIndex: prevRoutes.length + 1,
+                setQuotes((prevQuotes) => {
+                  const newQuote = {
+                    ...quote,
+                    displayIndex: prevQuotes.length + 1,
                   };
-                  return [...prevRoutes, newRoute];
+                  return [...prevQuotes, newQuote];
                 });
-              } else if (streamEvent.data.event.type === "result") {
-                const result = streamEvent.data.event.data as StreamingResult;
+              } else if (streamEvent.event.type === "result") {
+                const result = streamEvent.event.data as StreamingResult;
                 setLiquidityAvailable(result.liquidityAvailable);
                 setIsStreaming(false);
                 setIsComplete(true);
@@ -284,7 +281,7 @@ export default function StreamingQuote({
           {isStreaming && (
             <div className="flex items-center text-blue-600">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-              <span>Streaming routes...</span>
+              <span>Streaming quotes...</span>
             </div>
           )}
           {isComplete && !error && (
@@ -301,15 +298,15 @@ export default function StreamingQuote({
           )}
         </div>
 
-        {/* Routes Display */}
-        {routes.length > 0 && (
+        {/* Quotes Display */}
+        {quotes.length > 0 && (
           <div className="space-y-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-800">
-              Routes Found ({routes.length})
+              Quotes Found ({quotes.length})
             </h3>
             <div className="grid gap-4">
-              {routes.map((route, index) => (
-                <RouteCard key={`route-${index}`} route={route} />
+              {quotes.map((quote, index) => (
+                <QuoteCard key={`quote-${index}`} quote={quote} />
               ))}
             </div>
           </div>
