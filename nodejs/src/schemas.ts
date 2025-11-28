@@ -14,7 +14,7 @@ export const CrossChainQuotesRequestSchema = z.object({
   excludedBridges: z.string().optional(),
   excludedSwapSources: z.string().optional(),
   feeRecipient: z.string().optional(),
-  feeBps: z.number().min(0).max(10000).optional(),
+  feeBps: z.string().optional(),
   feeToken: z.string().optional(),
   maxNumQuotes: z.number().min(1).max(10).optional().default(3),
   gasPayer: z.string().optional(),
@@ -29,7 +29,7 @@ export const FeeSchema = z
   .nullable();
 
 export const FeesSchema = z.object({
-  integratorFee: FeeSchema,
+  integratorFees: z.array(FeeSchema),
   zeroExFee: FeeSchema,
   bridgeNativeFee: FeeSchema,
 });
