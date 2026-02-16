@@ -40,12 +40,12 @@ $ npm run evm-to-solana
 This may take several minutes...
 [10:30:15] 📊 Status: origin_tx_succeeded
 [10:32:20] 📊 Status: bridge_pending
-[10:34:45] 📊 Status: destination_tx_succeeded
+[10:34:45] 📊 Status: bridge_filled
 🔗 2 transactions found:
   1. Base: https://basescan.org/tx/0xdef456...
   2. Solana: https://solscan.io/tx/5uHR...
 
-🏁 Final Status: destination_tx_succeeded
+🏁 Final Status: bridge_filled
 🎉 Cross-chain swap completed successfully!
 ```
 

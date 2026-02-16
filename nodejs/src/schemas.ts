@@ -29,7 +29,7 @@ export const FeeSchema = z
   .nullable();
 
 export const FeesSchema = z.object({
-  integratorFees: z.array(FeeSchema),
+  integratorFees: z.array(FeeSchema).nullable(),
   zeroExFee: FeeSchema,
   bridgeNativeFee: FeeSchema,
 });
@@ -59,7 +59,7 @@ export const SwapStepSchema = z.object({
   buyAmount: z.string(),
   minBuyAmount: z.string(),
   fees: FeesSchema.optional(),
-  estimatedTimeSeconds: z.number(),
+  estimatedTimeSeconds: z.number().nullable(),
 });
 
 export const BridgeStepSchema = z.object({
@@ -73,7 +73,7 @@ export const BridgeStepSchema = z.object({
   minBuyAmount: z.string(),
   provider: z.string().optional(),
   fees: FeesSchema.optional(),
-  estimatedTimeSeconds: z.number(),
+  estimatedTimeSeconds: z.number().nullable(),
 });
 
 export const StepSchema = z.union([SwapStepSchema, BridgeStepSchema]);
@@ -101,6 +101,29 @@ export const TransactionSchema = z.union([
   SvmTransactionSchema,
 ]);
 
+export const TransactionWithChainSchema = z.union([
+  z.object({
+    chainType: z.literal("evm"),
+    chainId: z.number(),
+    chain: z.string(),
+    details: z.object({
+      to: z.string(),
+      data: z.string(),
+      gas: z.string().nullable(),
+      gasPrice: z.string().nullable(),
+      value: z.string(),
+    }),
+  }),
+  z.object({
+    chainType: z.literal("svm"),
+    chainId: z.number(),
+    chain: z.string(),
+    details: z.object({
+      serializedTransaction: z.string(),
+    }),
+  }),
+]);
+
 export const AllowanceIssueSchema = z
   .object({
     actual: z.string(),
@@ -116,12 +139,20 @@ export const BalanceIssueSchema = z
   })
   .nullable();
 
+// Quote-level issues (no invalidSwapSourcesPassed/invalidBridgesPassed)
+export const QuoteIssuesSchema = z.object({
+  allowance: AllowanceIssueSchema,
+  balance: BalanceIssueSchema,
+  simulationIncomplete: z.boolean(),
+});
+
+// Response-level issues (includes invalidSwapSourcesPassed/invalidBridgesPassed)
 export const IssuesSchema = z.object({
   allowance: AllowanceIssueSchema,
   balance: BalanceIssueSchema,
   simulationIncomplete: z.boolean(),
-  invalidSourcesPassed: z.array(z.string()).optional(),
-  invalidBridgesPassed: z.array(z.string()).optional(),
+  invalidSwapSourcesPassed: z.array(z.string()),
+  invalidBridgesPassed: z.array(z.string()),
 });
 
 export const QuoteSchema = z.object({
@@ -132,8 +163,8 @@ export const QuoteSchema = z.object({
   gasCosts: GasCostsSchema,
   steps: z.array(StepSchema),
   transaction: TransactionSchema,
-  estimatedTimeSeconds: z.number(),
-  issues: IssuesSchema,
+  estimatedTimeSeconds: z.number().nullable(),
+  issues: QuoteIssuesSchema,
   quoteId: z.string(),
 });
 
@@ -149,7 +180,6 @@ export const CrossChainQuotesResponseSchema = z.union([
     buyToken: z.string(),
     issues: IssuesSchema,
     zid: z.string(),
-    routes: z.array(QuoteSchema).min(1).optional(),
     quotes: z.array(QuoteSchema).min(1),
   }),
   z.object({
@@ -162,7 +192,7 @@ export const CrossChainQuotesResponseSchema = z.union([
 export const TransactionInfoSchema = z.object({
   chainId: z.number(),
   chain: z.string(),
-  txHash: z.string(),
+  txHash: z.string().nullable(),
   timestamp: z.number(),
 });
 
@@ -171,38 +201,98 @@ export const CrossChainStatusRequestSchema = z.object({
   originTxHash: z.string(),
 });
 
+// Status step schemas (different from quote steps — include transactions)
+export const StatusWrapStepSchema = z.object({
+  type: z.literal("wrap"),
+  chainId: z.number(),
+  sellToken: z.string(),
+  buyToken: z.string(),
+  amount: z.string(),
+  transactions: z.array(TransactionInfoSchema),
+});
+
+export const StatusUnwrapStepSchema = z.object({
+  type: z.literal("unwrap"),
+  chainId: z.number(),
+  sellToken: z.string(),
+  buyToken: z.string(),
+  amount: z.string(),
+  transactions: z.array(TransactionInfoSchema),
+});
+
+export const StatusSwapStepSchema = z.object({
+  type: z.literal("swap"),
+  chainId: z.number(),
+  sellToken: z.string(),
+  buyToken: z.string(),
+  sellAmount: z.string(),
+  minBuyAmount: z.string(),
+  quotedBuyAmount: z.string(),
+  estimatedTimeSeconds: z.number().nullable(),
+  transactions: z.array(TransactionInfoSchema),
+});
+
+export const StatusBridgeStepSchema = z.object({
+  type: z.literal("bridge"),
+  bridge: z.string(),
+  originChainId: z.number(),
+  destinationChainId: z.number(),
+  sellToken: z.string(),
+  buyToken: z.string(),
+  sellAmount: z.string(),
+  minBuyAmount: z.string(),
+  quotedBuyAmount: z.string(),
+  settledBuyAmount: z.string().nullable(),
+  estimatedTimeSeconds: z.number().nullable(),
+  transactions: z.array(TransactionInfoSchema),
+});
+
+export const StatusStepSchema = z.union([
+  StatusWrapStepSchema,
+  StatusUnwrapStepSchema,
+  StatusSwapStepSchema,
+  StatusBridgeStepSchema,
+]);
+
+export const RecoveryStepSchema = z.object({
+  chainId: z.number(),
+  token: z.string(),
+  amount: z.string(),
+  estimatedTimeSeconds: z.number().nullable(),
+  deadline: z.number().nullable(),
+  manualTransaction: TransactionSchema.nullable(),
+  settledAmount: z.string().nullable(),
+});
+
+export const FailureContextSchema = z.object({
+  reason: z.string(),
+  status: z.enum([
+    "refund_pending",
+    "refund_succeeded",
+    "manual_action_required",
+    "no_actions_required",
+    "failed",
+  ]),
+  transactions: z.array(TransactionInfoSchema),
+  recovery: RecoveryStepSchema.nullable(),
+});
+
 export const CrossChainStatusResponseSchema = z.object({
   status: z.enum([
+    "origin_tx_pending",
     "origin_tx_succeeded",
     "origin_tx_confirmed",
     "origin_tx_reverted",
     "bridge_pending",
-    "bridge_delayed",
     "bridge_filled",
     "bridge_failed",
-    "refund_pending",
-    "refund_succeeded",
-    "refund_failed",
-    "destination_tx_pending",
-    "destination_tx_confirmed",
-    "destination_tx_reverted",
-    "destination_tx_succeeded",
-    "destination_tx_failed",
-    "not_found",
     "unknown",
   ]),
-  subStatus: z
-    .enum([
-      "insufficient_allowance",
-      "insufficient_balance",
-      "failed_simulation",
-      "expired",
-      "internal",
-      "unknown",
-    ])
-    .optional(),
   bridge: z.string().optional(),
+  steps: z.array(StatusStepSchema),
+  failure: FailureContextSchema.nullable(),
   transactions: z.array(TransactionInfoSchema),
+  retryTransaction: TransactionWithChainSchema.optional(),
   zid: z.string(),
 });
 

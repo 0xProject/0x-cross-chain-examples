@@ -98,7 +98,7 @@ export default function StreamingQuote({
       originAddress,
     });
 
-    const apiUrl = "https://staging.api.0x.org/cross-chain/quotes/stream";
+    const apiUrl = "https://api.0x.org/cross-chain/quotes/stream";
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;

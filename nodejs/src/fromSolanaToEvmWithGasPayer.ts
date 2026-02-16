@@ -195,9 +195,7 @@ async function solanaToBaseWithGasPayerExample() {
           onUpdate: (status) => {
             const timestamp = new Date().toLocaleTimeString();
             console.log(
-              `[${timestamp}] 📊 Status: ${status.status}${
-                status.subStatus ? ` (${status.subStatus})` : ""
-              }`
+              `[${timestamp}] 📊 Status: ${status.status}`
             );
 
             if (status.transactions.length > 1) {
@@ -220,10 +218,7 @@ async function solanaToBaseWithGasPayerExample() {
 
       console.log(`\n🏁 Final Status: ${finalStatus.status}`);
 
-      if (
-        finalStatus.status === "destination_tx_succeeded" ||
-        finalStatus.status === "bridge_filled"
-      ) {
+      if (finalStatus.status === "bridge_filled") {
         console.log("🎉 Cross-chain swap completed successfully!");
         console.log("\n📋 Final Transaction Summary:");
         finalStatus.transactions.forEach((tx, i) => {
@@ -238,8 +233,8 @@ async function solanaToBaseWithGasPayerExample() {
         });
       } else {
         console.log("❌ Cross-chain swap did not complete successfully");
-        if (finalStatus.subStatus) {
-          console.log(`   Reason: ${finalStatus.subStatus}`);
+        if (finalStatus.failure) {
+          console.log(`   Reason: ${finalStatus.failure.reason}`);
         }
       }
     } catch (monitorError) {

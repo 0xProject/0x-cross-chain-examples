@@ -107,13 +107,8 @@ export class CrossChainClient {
 
         // Check if transaction is in a final state
         const finalStates = [
-          "destination_tx_succeeded",
-          "destination_tx_failed",
-          "destination_tx_reverted",
-          "bridge_failed",
           "bridge_filled",
-          "refund_succeeded",
-          "refund_failed",
+          "bridge_failed",
           "origin_tx_reverted",
         ];
 
