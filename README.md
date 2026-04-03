@@ -9,6 +9,8 @@ TypeScript examples showing complete cross-chain swap flows:
 - EVM to Solana (WETH → USDC)
 - Solana to EVM (WSOL → USDC)
 - EVM to EVM (Base ↔ Arbitrum)
+- Tron to EVM (USDT → USDC)
+- EVM to Tron (USDC → USDT)
 - Real-time transaction monitoring
 
 ### [`nextjs-streaming/`](./nextjs-streaming)

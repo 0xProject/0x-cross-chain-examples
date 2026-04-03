@@ -7,7 +7,9 @@
     "evm-to-solana": "tsx src/fromEvmToSolana.ts",
     "solana-to-evm": "tsx src/fromSolanaToEvm.ts",
     "solana-to-evm-with-gas-payer": "tsx src/fromSolanaToEvmWithGasPayer.ts",
-    "evm-to-evm": "tsx src/fromEvmToEvm.ts"
+    "evm-to-evm": "tsx src/fromEvmToEvm.ts",
+    "tron-to-evm": "tsx src/fromTronToEvm.ts",
+    "evm-to-tron": "tsx src/fromEvmToTron.ts"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,7 @@
     "bs58": "^6.0.0",
     "dotenv": "^17.2.1",
     "node-fetch": "^3.3.2",
+    "tronweb": "^6.2.2",
     "viem": "^2.33.2",
     "zod": "^4.0.15"
   }

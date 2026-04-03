@@ -103,12 +103,12 @@ async function baseToArbitrumExample() {
     quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
-          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${
-            step.destinationChainId
-          })`
+          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${step.destinationChainId})`
         );
-      } else {
+      } else if (step.type === "swap") {
         console.log(`    ${i + 1}. Swap on chain ${step.chainId}`);
+      } else {
+        console.log(`    ${i + 1}. ${step.type.charAt(0).toUpperCase() + step.type.slice(1)} on chain ${step.chainId}`);
       }
     });
 
@@ -225,8 +225,8 @@ async function baseToArbitrumExample() {
                     tx.chainId === 8453
                       ? `https://basescan.org/tx/${tx.txHash}`
                       : tx.chainId === 42161
-                      ? `https://arbiscan.io/tx/${tx.txHash}`
-                      : tx.txHash;
+                        ? `https://arbiscan.io/tx/${tx.txHash}`
+                        : tx.txHash;
                   console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl}`);
                 });
               }
@@ -245,8 +245,8 @@ async function baseToArbitrumExample() {
               tx.chainId === 8453
                 ? `https://basescan.org/tx/${tx.txHash}`
                 : tx.chainId === 42161
-                ? `https://arbiscan.io/tx/${tx.txHash}`
-                : tx.txHash;
+                  ? `https://arbiscan.io/tx/${tx.txHash}`
+                  : tx.txHash;
             console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl} (${date})`);
           });
         } else {
