@@ -22,7 +22,7 @@ export const CrossChainQuotesRequestSchema = z.object({
 });
 
 // Fee schemas — aligned with cross-chain-common/uv1.ts
-export const FeeSchema = z
+const VolumeFeeSchema = z
   .object({
     amount: z.string(),
     token: z.string(),
@@ -30,11 +30,20 @@ export const FeeSchema = z
   })
   .nullable();
 
+const NativeFeeSchema = z
+  .object({
+    amount: z.string(),
+    token: z.string(),
+    type: z.literal("native"),
+  })
+  .nullable();
+
 export const FeesSchema = z.object({
-  integratorFee: FeeSchema.optional(),
-  integratorFees: z.array(FeeSchema).nullable().optional(),
-  zeroExFee: FeeSchema,
-  bridgeNativeFee: FeeSchema,
+  integratorFee: VolumeFeeSchema.optional(),
+  integratorFees: z.array(VolumeFeeSchema).nullable().optional(),
+  zeroExFee: VolumeFeeSchema,
+  bridgeNativeFee: NativeFeeSchema,
+  reimbursementFee: VolumeFeeSchema.optional(),
 });
 
 // Gas costs — discriminated on chainType: evm | svm | tvm

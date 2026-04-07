@@ -8,6 +8,7 @@ import {
   loadConfig,
   TOKEN_ADDRESSES,
   CHAIN_IDS,
+  STATUS_CHAIN_IDS,
   DEFAULT_ADDRESSES,
 } from "./config";
 
@@ -30,9 +31,10 @@ async function arbitrumToTronExample() {
   let userAddress: string;
 
   if (configuration.evmPrivateKey) {
-    account = privateKeyToAccount(
-      configuration.evmPrivateKey as `0x${string}`,
-    );
+    const normalizedKey = configuration.evmPrivateKey.startsWith("0x")
+      ? configuration.evmPrivateKey
+      : `0x${configuration.evmPrivateKey}`;
+    account = privateKeyToAccount(normalizedKey as `0x${string}`);
     walletClient = createWalletClient({
       account,
       chain: arbitrum,
@@ -95,6 +97,10 @@ async function arbitrumToTronExample() {
     console.log(`  ⏱️ Estimated Time: ${quote.estimatedTimeSeconds}s`);
 
     console.log(`  🔄 Steps: ${quote.steps.length}`);
+    const bridgeStep = quote.steps.find((step) => step.type === "bridge");
+    if (bridgeStep && bridgeStep.type === "bridge") {
+      console.log(`  🌐 Bridge Provider: ${bridgeStep.provider}`);
+    }
     quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
@@ -207,10 +213,10 @@ async function arbitrumToTronExample() {
                   `🔗 ${status.transactions.length} transactions found:`,
                 );
                 status.transactions.forEach((tx, i) => {
-                  const explorerUrl =
-                    tx.chainId === 42161
+                    const explorerUrl =
+                    tx.chainId === STATUS_CHAIN_IDS.arbitrum
                       ? `https://arbiscan.io/tx/${tx.txHash}`
-                      : tx.chainId === 999999999993
+                      : tx.chainId === STATUS_CHAIN_IDS.tron
                         ? `https://tronscan.org/#/transaction/${tx.txHash?.replace(/^0x/, "")}`
                         : tx.txHash;
                   console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl}`);
@@ -228,9 +234,9 @@ async function arbitrumToTronExample() {
           finalStatus.transactions.forEach((tx, i) => {
             const date = new Date(tx.timestamp * 1000).toLocaleString();
             const explorerUrl =
-              tx.chainId === 42161
+              tx.chainId === STATUS_CHAIN_IDS.arbitrum
                 ? `https://arbiscan.io/tx/${tx.txHash}`
-                : tx.chainId === 999999999993
+                : tx.chainId === STATUS_CHAIN_IDS.tron
                   ? `https://tronscan.org/#/transaction/${tx.txHash?.replace(/^0x/, "")}`
                   : tx.txHash;
             console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl} (${date})`);
@@ -251,6 +257,12 @@ async function arbitrumToTronExample() {
         );
       }
     } else if (quote.transaction.chainType === "evm") {
+      console.log("\n📋 Transaction ready for execution:");
+      console.log(`  📍 To: ${quote.transaction.details.to}`);
+      console.log(`  💎 Value: ${quote.transaction.details.value} wei`);
+      console.log(
+        `  📄 Data: ${quote.transaction.details.data.slice(0, 20)}...`,
+      );
       console.log(
         "\n💡 To execute this transaction, provide EVM_PRIVATE_KEY in your environment",
       );

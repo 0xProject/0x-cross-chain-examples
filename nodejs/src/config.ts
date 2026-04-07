@@ -137,6 +137,15 @@ export const TOKEN_ADDRESSES = {
   USDT_TRON: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
 } as const;
 
+// Numeric chain IDs returned in status API responses
+// (different from the string identifiers used in the quote API for non-EVM chains)
+export const STATUS_CHAIN_IDS = {
+  base: 8453,
+  arbitrum: 42161,
+  solana: 999999999991,
+  tron: 999999999993,
+} as const;
+
 export const DEFAULT_ADDRESSES = {
   EVM: "0xABf40AADf960e20B4283dc5A06387A429Ba02456",
   SOLANA: "9FzTJNUfMVSPPNEsUDfUHuE1gSE7uDBamcGHq1CseUUZ",

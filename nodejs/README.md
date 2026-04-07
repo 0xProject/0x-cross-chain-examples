@@ -131,3 +131,4 @@ npm run evm-to-tron
 - **Monitoring**: 10-minute timeout with 5-second polling intervals
 - **Validation**: Strict private key format validation (64-char hex for EVM/Tron, 44-char base58 for Solana)
 - **Tron fees**: Tron uses energy + bandwidth instead of gas. Ensure your wallet has sufficient TRX for fees (~30 TRX for a typical cross-chain swap)
+- **Tron approvals**: Unlike EVM-origin swaps, Tron-origin swaps do not require a separate TRC-20 token approval step. The integrated bridge providers use direct TRC-20 transfers rather than contract-based spending patterns

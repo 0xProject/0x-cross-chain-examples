@@ -5,6 +5,7 @@ import {
   loadConfig,
   TOKEN_ADDRESSES,
   CHAIN_IDS,
+  STATUS_CHAIN_IDS,
   DEFAULT_ADDRESSES,
 } from "./config";
 
@@ -90,6 +91,10 @@ async function tronToArbitrumExample() {
     console.log(`  ⏱️ Estimated Time: ${quote.estimatedTimeSeconds}s`);
 
     console.log(`  🔄 Steps: ${quote.steps.length}`);
+    const bridgeStep = quote.steps.find((step) => step.type === "bridge");
+    if (bridgeStep && bridgeStep.type === "bridge") {
+      console.log(`  🌐 Bridge Provider: ${bridgeStep.provider}`);
+    }
     quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
@@ -117,6 +122,10 @@ async function tronToArbitrumExample() {
       );
     }
 
+    // TRC-20 token approvals are NOT needed for Tron-origin cross-chain swaps.
+    // The integrated bridge providers use direct TRC-20 transfers rather than
+    // contract-based spending, so no separate approve() step is required.
+
     if (quote.issues.balance) {
       console.log("❌ Insufficient balance detected");
       console.log(`  🔧 Token: ${quote.issues.balance.token}`);
@@ -134,6 +143,13 @@ async function tronToArbitrumExample() {
 
       // Build unsigned tx via the Tron HTTP API directly (same approach as the Rust CLI).
       // TronWeb's triggerSmartContract + manual data override can fail validation in v6.
+      const callValue = Number(txDetails.value || "0");
+      if (callValue > Number.MAX_SAFE_INTEGER) {
+        throw new Error(
+          "call_value exceeds safe integer range — use the Tron API string format for high-value transactions",
+        );
+      }
+
       const triggerResponse = await fetch(
         `${configuration.rpcUrls.tron}/wallet/triggersmartcontract`,
         {
@@ -145,11 +161,18 @@ async function tronToArbitrumExample() {
             function_selector: "",
             parameter: "",
             data: txDetails.data.replace(/^0x/, ""),
-            call_value: Number(txDetails.value) || 0,
+            call_value: callValue,
             fee_limit: TRON_FEE_LIMIT,
           }),
         },
       );
+
+      if (!triggerResponse.ok) {
+        const errorText = await triggerResponse.text();
+        throw new Error(
+          `Tron API error: ${triggerResponse.status} ${triggerResponse.statusText}\n${errorText}`,
+        );
+      }
 
       const triggerResult = await triggerResponse.json();
       if (!triggerResult.transaction) {
@@ -226,10 +249,10 @@ async function tronToArbitrumExample() {
                   `🔗 ${status.transactions.length} transactions found:`,
                 );
                 status.transactions.forEach((tx, i) => {
-                  const explorerUrl =
-                    tx.chainId === 999999999993
+                    const explorerUrl =
+                    tx.chainId === STATUS_CHAIN_IDS.tron
                       ? `https://tronscan.org/#/transaction/${tx.txHash?.replace(/^0x/, "")}`
-                      : tx.chainId === 42161
+                      : tx.chainId === STATUS_CHAIN_IDS.arbitrum
                         ? `https://arbiscan.io/tx/${tx.txHash}`
                         : tx.txHash;
                   console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl}`);
@@ -247,9 +270,9 @@ async function tronToArbitrumExample() {
           finalStatus.transactions.forEach((tx, i) => {
             const date = new Date(tx.timestamp * 1000).toLocaleString();
             const explorerUrl =
-              tx.chainId === 999999999993
+              tx.chainId === STATUS_CHAIN_IDS.tron
                 ? `https://tronscan.org/#/transaction/${tx.txHash?.replace(/^0x/, "")}`
-                : tx.chainId === 42161
+                : tx.chainId === STATUS_CHAIN_IDS.arbitrum
                   ? `https://arbiscan.io/tx/${tx.txHash}`
                   : tx.txHash;
             console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl} (${date})`);
@@ -270,6 +293,13 @@ async function tronToArbitrumExample() {
         );
       }
     } else if (quote.transaction.chainType === "tvm") {
+      console.log("\n📋 Transaction ready for execution:");
+      console.log(`  📍 Contract: ${quote.transaction.details.to}`);
+      console.log(`  👤 Owner: ${quote.transaction.details.ownerAddress}`);
+      console.log(`  💎 Value: ${quote.transaction.details.value} sun`);
+      console.log(
+        `  📄 Data: ${quote.transaction.details.data.slice(0, 20)}...`,
+      );
       console.log(
         "\n💡 To execute this transaction, provide TRON_PRIVATE_KEY in your environment",
       );
