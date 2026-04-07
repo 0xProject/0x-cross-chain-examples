@@ -27,6 +27,7 @@ async function tronToArbitrumExample() {
 
   const crossChainClient = new CrossChainClient(configuration.zeroexApiKey);
 
+  // Setup Tron wallet if private key is provided
   let tronWeb: InstanceType<typeof TronWeb> | null = null;
   let userAddress: string;
 
@@ -38,6 +39,7 @@ async function tronToArbitrumExample() {
     });
     userAddress = tronWeb.defaultAddress.base58 as string;
   } else {
+    // Use default address for quote-only mode
     userAddress = DEFAULT_ADDRESSES.TRON;
     console.log(
       "⚠️  No TRON_PRIVATE_KEY provided - running in quote-only mode",
@@ -46,9 +48,11 @@ async function tronToArbitrumExample() {
 
   const sellAmount = "5000000"; // 5 USDT (6 decimals)
 
+  // Get receiver address or use default
   const receiverAddress =
     configuration.evmReceiverAddress || DEFAULT_ADDRESSES.EVM;
 
+  // Safety check: if executing transactions, require explicit receiver address
   if (configuration.tronPrivateKey && !configuration.evmReceiverAddress) {
     console.log(
       "❌ SAFETY: EVM_RECEIVER_ADDRESS must be set when executing transactions",
@@ -64,6 +68,7 @@ async function tronToArbitrumExample() {
   console.log(`🎯 Receiver (Arbitrum): ${receiverAddress}`);
 
   try {
+    // Step 1: Get the best quote
     console.log("\n📊 Getting cross-chain quote...");
     const quoteResponse = await crossChainClient.getQuotes({
       originChain: CHAIN_IDS.tron,
@@ -90,11 +95,13 @@ async function tronToArbitrumExample() {
     console.log(`  🛡️ Min Receive: ${Number(quote.minBuyAmount) / 1e6} USDC`);
     console.log(`  ⏱️ Estimated Time: ${quote.estimatedTimeSeconds}s`);
 
+    // Display quote steps and bridge provider
     console.log(`  🔄 Steps: ${quote.steps.length}`);
     const bridgeStep = quote.steps.find((step) => step.type === "bridge");
-    if (bridgeStep && bridgeStep.type === "bridge") {
-      console.log(`  🌐 Bridge Provider: ${bridgeStep.provider}`);
+    if (bridgeStep && bridgeStep.provider) {
+      console.log(`  🌉 Bridge Provider: ${bridgeStep.provider}`);
     }
+
     quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
@@ -126,6 +133,7 @@ async function tronToArbitrumExample() {
     // The integrated bridge providers use direct TRC-20 transfers rather than
     // contract-based spending, so no separate approve() step is required.
 
+    // Check for balance issues first - skip everything if insufficient balance
     if (quote.issues.balance) {
       console.log("❌ Insufficient balance detected");
       console.log(`  🔧 Token: ${quote.issues.balance.token}`);
@@ -137,9 +145,10 @@ async function tronToArbitrumExample() {
       return;
     }
 
+    // Step 2: Execute transaction (only if private key provided)
     if (quote.transaction.chainType === "tvm" && tronWeb) {
       const txDetails = quote.transaction.details;
-      console.log("\n🚀 Executing Tron transaction...");
+      console.log("\n🚀 Executing transaction on Tron...");
 
       // Build unsigned tx via the Tron HTTP API directly (same approach as the Rust CLI).
       // TronWeb's triggerSmartContract + manual data override can fail validation in v6.
@@ -227,7 +236,8 @@ async function tronToArbitrumExample() {
         }
       }
 
-      // Monitor cross-chain status (Tron tx hashes need 0x prefix for the status API)
+      // Step 3: Monitor cross-chain transaction
+      // Tron tx hashes need 0x prefix for the status API
       console.log("\n👀 Monitoring cross-chain transaction...");
       console.log("This may take several minutes...");
 
@@ -238,7 +248,7 @@ async function tronToArbitrumExample() {
             originTxHash: `0x${txHash}`,
           },
           {
-            maxAttempts: 120,
+            maxAttempts: 120, // 10 minutes
             intervalMs: 5000,
             onUpdate: (status) => {
               const timestamp = new Date().toLocaleTimeString();
@@ -293,12 +303,12 @@ async function tronToArbitrumExample() {
         );
       }
     } else if (quote.transaction.chainType === "tvm") {
-      console.log("\n📋 Transaction ready for execution:");
+      console.log("\n💡 Transaction ready for execution:");
       console.log(`  📍 Contract: ${quote.transaction.details.to}`);
       console.log(`  👤 Owner: ${quote.transaction.details.ownerAddress}`);
       console.log(`  💎 Value: ${quote.transaction.details.value} sun`);
       console.log(
-        `  📄 Data: ${quote.transaction.details.data.slice(0, 20)}...`,
+        `  📝 Data: ${quote.transaction.details.data.slice(0, 20)}...`,
       );
       console.log(
         "\n💡 To execute this transaction, provide TRON_PRIVATE_KEY in your environment",

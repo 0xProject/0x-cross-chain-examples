@@ -38,12 +38,20 @@ const NativeFeeSchema = z
   })
   .nullable();
 
+const ReimbursementFeeSchema = z
+  .object({
+    amount: z.string(),
+    token: z.string(),
+    recipient: z.string(),
+  })
+  .optional();
+
 export const FeesSchema = z.object({
   integratorFee: VolumeFeeSchema.optional(),
   integratorFees: z.array(VolumeFeeSchema).nullable().optional(),
   zeroExFee: VolumeFeeSchema,
   bridgeNativeFee: NativeFeeSchema,
-  reimbursementFee: VolumeFeeSchema.optional(),
+  reimbursementFee: ReimbursementFeeSchema,
 });
 
 // Gas costs — discriminated on chainType: evm | svm | tvm

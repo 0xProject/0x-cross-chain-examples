@@ -26,6 +26,7 @@ async function arbitrumToTronExample() {
 
   const crossChainClient = new CrossChainClient(configuration.zeroexApiKey);
 
+  // Setup wallet if private key is provided
   let account = null;
   let walletClient = null;
   let userAddress: string;
@@ -42,6 +43,7 @@ async function arbitrumToTronExample() {
     }).extend(publicActions);
     userAddress = account.address;
   } else {
+    // Use default address for quote-only mode
     userAddress = DEFAULT_ADDRESSES.EVM;
     console.log(
       "⚠️  No EVM_PRIVATE_KEY provided - running in quote-only mode",
@@ -50,9 +52,11 @@ async function arbitrumToTronExample() {
 
   const sellAmount = "4000000"; // 4 USDC (6 decimals)
 
+  // Get receiver address or use default
   const receiverAddress =
     configuration.tronReceiverAddress || DEFAULT_ADDRESSES.TRON;
 
+  // Safety check: if executing transactions, require explicit receiver address
   if (configuration.evmPrivateKey && !configuration.tronReceiverAddress) {
     console.log(
       "❌ SAFETY: TRON_RECEIVER_ADDRESS must be set when executing transactions",
@@ -70,6 +74,7 @@ async function arbitrumToTronExample() {
   console.log(`🎯 Receiver (Tron): ${receiverAddress}`);
 
   try {
+    // Step 1: Get the best quote
     console.log("\n📊 Getting cross-chain quote...");
     const quoteResponse = await crossChainClient.getQuotes({
       originChain: CHAIN_IDS.arbitrum,
@@ -96,11 +101,13 @@ async function arbitrumToTronExample() {
     console.log(`  🛡️ Min Receive: ${Number(quote.minBuyAmount) / 1e6} USDT`);
     console.log(`  ⏱️ Estimated Time: ${quote.estimatedTimeSeconds}s`);
 
+    // Display quote steps and bridge provider
     console.log(`  🔄 Steps: ${quote.steps.length}`);
     const bridgeStep = quote.steps.find((step) => step.type === "bridge");
-    if (bridgeStep && bridgeStep.type === "bridge") {
-      console.log(`  🌐 Bridge Provider: ${bridgeStep.provider}`);
+    if (bridgeStep && bridgeStep.provider) {
+      console.log(`  🌉 Bridge Provider: ${bridgeStep.provider}`);
     }
+
     quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
@@ -115,6 +122,7 @@ async function arbitrumToTronExample() {
       }
     });
 
+    // Check for balance issues first - skip everything if insufficient balance
     if (quote.issues.balance) {
       console.log("❌ Insufficient balance detected");
       console.log(`  🔧 Token: ${quote.issues.balance.token}`);
@@ -126,6 +134,7 @@ async function arbitrumToTronExample() {
       return;
     }
 
+    // Check for issues and handle allowance
     if (quote.issues.allowance) {
       console.log("⚠️  Allowance issue detected - approval needed");
       console.log(`  📍 Spender: ${quote.issues.allowance.spender}`);
@@ -135,6 +144,8 @@ async function arbitrumToTronExample() {
 
       if (walletClient) {
         console.log("\n🔧 Handling token approval...");
+
+        console.log("📤 Sending approval transaction...");
         const tokenAddress = TOKEN_ADDRESSES.USDC_ARB;
         const approveTxHash = await walletClient.writeContract({
           address: tokenAddress as `0x${string}`,
@@ -159,6 +170,7 @@ async function arbitrumToTronExample() {
       }
     }
 
+    // Step 2: Execute transaction (only if private key provided)
     if (quote.transaction.chainType === "evm" && walletClient) {
       console.log("\n🚀 Executing transaction on Arbitrum...");
 
@@ -176,6 +188,7 @@ async function arbitrumToTronExample() {
       console.log(`  💎 Value: ${txRequest.value} wei`);
       console.log(`  ⛽ Gas: ${txRequest.gas?.toString() || "estimated"}`);
 
+      // Send transaction directly (API already simulated)
       console.log("📤 Sending transaction...");
       const txHash = await walletClient.sendTransaction(txRequest);
       console.log(`📝 Transaction sent: ${txHash}`);
@@ -190,6 +203,7 @@ async function arbitrumToTronExample() {
       );
       console.log(`🔗 View on Arbiscan: https://arbiscan.io/tx/${txHash}`);
 
+      // Step 3: Monitor cross-chain transaction
       console.log("\n👀 Monitoring cross-chain transaction...");
       console.log(
         "This may take several minutes for the bridge to complete...",
@@ -202,7 +216,7 @@ async function arbitrumToTronExample() {
             originTxHash: txHash,
           },
           {
-            maxAttempts: 120,
+            maxAttempts: 120, // 10 minutes
             intervalMs: 5000,
             onUpdate: (status) => {
               const timestamp = new Date().toLocaleTimeString();
@@ -257,11 +271,11 @@ async function arbitrumToTronExample() {
         );
       }
     } else if (quote.transaction.chainType === "evm") {
-      console.log("\n📋 Transaction ready for execution:");
+      console.log("\n💡 Transaction ready for execution:");
       console.log(`  📍 To: ${quote.transaction.details.to}`);
       console.log(`  💎 Value: ${quote.transaction.details.value} wei`);
       console.log(
-        `  📄 Data: ${quote.transaction.details.data.slice(0, 20)}...`,
+        `  📝 Data: ${quote.transaction.details.data.slice(0, 20)}...`,
       );
       console.log(
         "\n💡 To execute this transaction, provide EVM_PRIVATE_KEY in your environment",
