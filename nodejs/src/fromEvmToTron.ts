@@ -48,7 +48,7 @@ async function arbitrumToTronExample() {
     );
   }
 
-  const sellAmount = "5000000"; // 5 USDC (6 decimals)
+  const sellAmount = "4000000"; // 4 USDC (6 decimals)
 
   const receiverAddress =
     configuration.tronReceiverAddress || DEFAULT_ADDRESSES.TRON;
@@ -213,7 +213,7 @@ async function arbitrumToTronExample() {
                   `🔗 ${status.transactions.length} transactions found:`,
                 );
                 status.transactions.forEach((tx, i) => {
-                    const explorerUrl =
+                  const explorerUrl =
                     tx.chainId === STATUS_CHAIN_IDS.arbitrum
                       ? `https://arbiscan.io/tx/${tx.txHash}`
                       : tx.chainId === STATUS_CHAIN_IDS.tron

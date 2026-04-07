@@ -8,15 +8,18 @@ const EnvironmentConfigurationSchema = z.object({
     .string()
     .optional()
     .refine((key) => {
-      if (!key) return true;
+      if (!key) return true; // Optional field
+      // Remove 0x prefix if present
       const cleanKey = key.startsWith("0x") ? key.slice(2) : key;
+      // Must be exactly 64 hex characters
       return /^[0-9a-fA-F]{64}$/.test(cleanKey);
     }, "Invalid EVM private key format (must be 64 hex characters, optionally prefixed with 0x)"),
   SOLANA_PRIVATE_KEY: z
     .string()
     .optional()
     .refine((key) => {
-      if (!key) return true;
+      if (!key) return true; // Optional field
+      // Must be 44 or 88 characters and valid base58
       const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{44,88}$/;
       return base58Regex.test(key);
     }, "Invalid Solana private key format (must be 44 or 88 character base58 string)"),
@@ -24,7 +27,8 @@ const EnvironmentConfigurationSchema = z.object({
     .string()
     .optional()
     .refine((key) => {
-      if (!key) return true;
+      if (!key) return true; // Optional field
+      // Must be 44 or 88 characters and valid base58
       const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{44,88}$/;
       return base58Regex.test(key);
     }, "Invalid Solana gas payer private key format (must be 44 or 88 character base58 string)"),
@@ -32,7 +36,8 @@ const EnvironmentConfigurationSchema = z.object({
     .string()
     .optional()
     .refine((key) => {
-      if (!key) return true;
+      if (!key) return true; // Optional field
+      // Must be exactly 64 hex characters (no 0x prefix)
       const cleanKey = key.startsWith("0x") ? key.slice(2) : key;
       return /^[0-9a-fA-F]{64}$/.test(cleanKey);
     }, "Invalid Tron private key format (must be 64 hex characters)"),
@@ -40,14 +45,14 @@ const EnvironmentConfigurationSchema = z.object({
     .string()
     .optional()
     .refine((address) => {
-      if (!address) return true;
+      if (!address) return true; // Optional field
       return isEvmAddress(address);
     }, "Invalid EVM address format"),
   SOLANA_RECEIVER_ADDRESS: z
     .string()
     .optional()
     .refine((address) => {
-      if (!address) return true;
+      if (!address) return true; // Optional field
       try {
         return isSolanaAddress(address);
       } catch {
@@ -58,7 +63,7 @@ const EnvironmentConfigurationSchema = z.object({
     .string()
     .optional()
     .refine((address) => {
-      if (!address) return true;
+      if (!address) return true; // Optional field
       return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
     }, "Invalid Tron address format (must be Base58Check starting with T)"),
   BASE_RPC_URL: z.string().url().default("https://mainnet.base.org"),
@@ -67,7 +72,7 @@ const EnvironmentConfigurationSchema = z.object({
     .string()
     .url()
     .default("https://api.mainnet-beta.solana.com"),
-  TRON_API_URL: z.string().url().default("https://api.trongrid.io"),
+  TRON_RPC_URL: z.string().url().default("https://api.trongrid.io"),
 });
 
 export interface Config {
@@ -105,7 +110,7 @@ export function loadConfig(): Config {
       base: environmentConfiguration.BASE_RPC_URL,
       arbitrum: environmentConfiguration.ARBITRUM_RPC_URL,
       solana: environmentConfiguration.SOLANA_RPC_URL,
-      tron: environmentConfiguration.TRON_API_URL,
+      tron: environmentConfiguration.TRON_RPC_URL,
     },
   };
 }

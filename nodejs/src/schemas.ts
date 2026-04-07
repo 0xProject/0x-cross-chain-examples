@@ -173,12 +173,14 @@ export const BalanceIssueSchema = z
   })
   .nullable();
 
+// Quote-level issues (no invalidSwapSourcesPassed/invalidBridgesPassed)
 export const QuoteIssuesSchema = z.object({
   allowance: AllowanceIssueSchema,
   balance: BalanceIssueSchema,
   simulationIncomplete: z.boolean(),
 });
 
+// Response-level issues (includes invalidSwapSourcesPassed/invalidBridgesPassed)
 export const IssuesSchema = z.object({
   allowance: AllowanceIssueSchema,
   balance: BalanceIssueSchema,

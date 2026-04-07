@@ -44,7 +44,7 @@ async function tronToArbitrumExample() {
     );
   }
 
-  const sellAmount = "10000000"; // 10 USDT (6 decimals)
+  const sellAmount = "5000000"; // 5 USDT (6 decimals)
 
   const receiverAddress =
     configuration.evmReceiverAddress || DEFAULT_ADDRESSES.EVM;
@@ -249,7 +249,7 @@ async function tronToArbitrumExample() {
                   `🔗 ${status.transactions.length} transactions found:`,
                 );
                 status.transactions.forEach((tx, i) => {
-                    const explorerUrl =
+                  const explorerUrl =
                     tx.chainId === STATUS_CHAIN_IDS.tron
                       ? `https://tronscan.org/#/transaction/${tx.txHash?.replace(/^0x/, "")}`
                       : tx.chainId === STATUS_CHAIN_IDS.arbitrum

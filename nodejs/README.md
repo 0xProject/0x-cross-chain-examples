@@ -98,7 +98,7 @@ Copy the example from [.env.example](./.env.example) into a new `.env` file:
 | `BASE_RPC_URL`            | Base network RPC endpoint                             | ❌       | `https://mainnet.base.org`            |
 | `ARBITRUM_RPC_URL`        | Arbitrum network RPC endpoint                         | ❌       | `https://arb1.arbitrum.io/rpc`        |
 | `SOLANA_RPC_URL`          | Solana RPC endpoint                                   | ❌       | `https://api.mainnet-beta.solana.com` |
-| `TRON_API_URL`            | Tron full-node API endpoint                           | ❌       | `https://api.trongrid.io`            |
+| `TRON_RPC_URL`            | Tron full-node RPC endpoint                           | ❌       | `https://api.trongrid.io`            |
 
 _\*Required when executing transactions to prevent accidental sends to default addresses_
 
@@ -130,5 +130,5 @@ npm run evm-to-tron
 - **Slippage**: Set to 1% (100 basis points) - adjustable per swap
 - **Monitoring**: 10-minute timeout with 5-second polling intervals
 - **Validation**: Strict private key format validation (64-char hex for EVM/Tron, 44-char base58 for Solana)
-- **Tron fees**: Tron uses energy + bandwidth instead of gas. Ensure your wallet has sufficient TRX for fees (~30 TRX for a typical cross-chain swap)
+- **Tron fees**: Tron uses energy + bandwidth instead of gas. Ensure your wallet has sufficient TRX to cover transaction fees
 - **Tron approvals**: Unlike EVM-origin swaps, Tron-origin swaps do not require a separate TRC-20 token approval step. The integrated bridge providers use direct TRC-20 transfers rather than contract-based spending patterns
