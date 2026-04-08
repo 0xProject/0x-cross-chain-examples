@@ -100,12 +100,12 @@ async function solanaToBaseExample() {
     quote.steps.forEach((step, i) => {
       if (step.type === "bridge") {
         console.log(
-          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${
-            step.destinationChainId
-          })`
+          `    ${i + 1}. Bridge via ${step.provider} (${step.originChainId} → ${step.destinationChainId})`
         );
-      } else {
+      } else if (step.type === "swap") {
         console.log(`    ${i + 1}. Swap on chain ${step.chainId}`);
+      } else {
+        console.log(`    ${i + 1}. ${step.type.charAt(0).toUpperCase() + step.type.slice(1)} on chain ${step.chainId}`);
       }
     });
 
@@ -114,8 +114,7 @@ async function solanaToBaseExample() {
       console.log(`  ⛽ Solana Transaction Fees:`);
       console.log(`    🔹 Base Fee: ${Number(quote.gasCosts.base) / 1e9} SOL`);
       console.log(
-        `    🔸 Priority Fee: ${
-          quote.gasCosts.priority ? Number(quote.gasCosts.priority) / 1e9 : 0
+        `    🔸 Priority Fee: ${quote.gasCosts.priority ? Number(quote.gasCosts.priority) / 1e9 : 0
         } SOL`
       );
       console.log(
@@ -199,8 +198,8 @@ async function solanaToBaseExample() {
                     tx.chainId === 8453
                       ? `https://basescan.org/tx/${tx.txHash}`
                       : tx.chainId === 999999999991
-                      ? `https://solscan.io/tx/${tx.txHash}`
-                      : tx.txHash;
+                        ? `https://solscan.io/tx/${tx.txHash}`
+                        : tx.txHash;
                   console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl}`);
                 });
               }
@@ -219,8 +218,8 @@ async function solanaToBaseExample() {
               tx.chainId === 8453
                 ? `https://basescan.org/tx/${tx.txHash}`
                 : tx.chainId === 999999999991
-                ? `https://solscan.io/tx/${tx.txHash}`
-                : tx.txHash;
+                  ? `https://solscan.io/tx/${tx.txHash}`
+                  : tx.txHash;
             console.log(`  ${i + 1}. ${tx.chain}: ${explorerUrl} (${date})`);
           });
         } else {

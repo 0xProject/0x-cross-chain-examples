@@ -12,6 +12,7 @@ export const CrossChainQuotesRequestSchema = z.object({
   destinationAddress: z.string().optional(),
   slippageBps: z.number().optional().default(100),
   excludedBridges: z.string().optional(),
+  includedBridges: z.string().optional(),
   excludedSwapSources: z.string().optional(),
   feeRecipient: z.string().optional(),
   feeBps: z.string().optional(),
@@ -20,20 +21,40 @@ export const CrossChainQuotesRequestSchema = z.object({
   gasPayer: z.string().optional(),
 });
 
-export const FeeSchema = z
+// Fee schemas — aligned with cross-chain-common/uv1.ts
+const VolumeFeeSchema = z
   .object({
     amount: z.string(),
     token: z.string(),
-    type: z.enum(["volume", "native"]),
+    type: z.literal("volume"),
   })
   .nullable();
 
+const NativeFeeSchema = z
+  .object({
+    amount: z.string(),
+    token: z.string(),
+    type: z.literal("native"),
+  })
+  .nullable();
+
+const ReimbursementFeeSchema = z
+  .object({
+    amount: z.string(),
+    token: z.string(),
+    recipient: z.string(),
+  })
+  .optional();
+
 export const FeesSchema = z.object({
-  integratorFees: z.array(FeeSchema).nullable(),
-  zeroExFee: FeeSchema,
-  bridgeNativeFee: FeeSchema,
+  integratorFee: VolumeFeeSchema.optional(),
+  integratorFees: z.array(VolumeFeeSchema).nullable().optional(),
+  zeroExFee: VolumeFeeSchema,
+  bridgeNativeFee: NativeFeeSchema,
+  reimbursementFee: ReimbursementFeeSchema,
 });
 
+// Gas costs — discriminated on chainType: evm | svm | tvm
 export const EvmGasCostsSchema = z.object({
   chainType: z.literal("evm"),
   gasPrice: z.string().nullable(),
@@ -48,36 +69,67 @@ export const SvmGasCostsSchema = z.object({
   total: z.string(),
 });
 
-export const GasCostsSchema = z.union([EvmGasCostsSchema, SvmGasCostsSchema]);
+export const TvmGasCostsSchema = z.object({
+  chainType: z.literal("tvm"),
+  energyFee: z.string(),
+  bandwidthFee: z.string(),
+  total: z.string(),
+});
+
+export const GasCostsSchema = z.discriminatedUnion("chainType", [
+  EvmGasCostsSchema,
+  SvmGasCostsSchema,
+  TvmGasCostsSchema,
+]);
+
+// Quote steps — discriminated on type: wrap | unwrap | swap | bridge
+const BaseWrapStepSchema = z.object({
+  chainId: z.number(),
+  sellToken: z.string(),
+  buyToken: z.string(),
+  amount: z.string(),
+});
+
+export const WrapStepSchema = BaseWrapStepSchema.extend({
+  type: z.literal("wrap"),
+});
+
+export const UnwrapStepSchema = BaseWrapStepSchema.extend({
+  type: z.literal("unwrap"),
+});
 
 export const SwapStepSchema = z.object({
   type: z.literal("swap"),
-  chainId: z.number().optional(),
+  chainId: z.number(),
   sellToken: z.string(),
   buyToken: z.string(),
   sellAmount: z.string(),
   buyAmount: z.string(),
   minBuyAmount: z.string(),
-  fees: FeesSchema.optional(),
   estimatedTimeSeconds: z.number().nullable(),
 });
 
 export const BridgeStepSchema = z.object({
   type: z.literal("bridge"),
-  originChainId: z.number().optional(),
-  destinationChainId: z.number().optional(),
+  originChainId: z.number(),
+  destinationChainId: z.number(),
   sellToken: z.string(),
   buyToken: z.string(),
   sellAmount: z.string(),
   buyAmount: z.string(),
   minBuyAmount: z.string(),
-  provider: z.string().optional(),
-  fees: FeesSchema.optional(),
+  provider: z.string(),
   estimatedTimeSeconds: z.number().nullable(),
 });
 
-export const StepSchema = z.union([SwapStepSchema, BridgeStepSchema]);
+export const StepSchema = z.discriminatedUnion("type", [
+  WrapStepSchema,
+  UnwrapStepSchema,
+  SwapStepSchema,
+  BridgeStepSchema,
+]);
 
+// Transaction schemas — discriminated on chainType: evm | svm | tvm
 export const EvmTransactionSchema = z.object({
   chainType: z.literal("evm"),
   details: z.object({
@@ -96,34 +148,24 @@ export const SvmTransactionSchema = z.object({
   }),
 });
 
-export const TransactionSchema = z.union([
+export const TvmTransactionSchema = z.object({
+  chainType: z.literal("tvm"),
+  details: z.object({
+    to: z.string(),
+    data: z.string(),
+    value: z.string(),
+    ownerAddress: z.string(),
+    memo: z.string().optional(),
+  }),
+});
+
+export const TransactionSchema = z.discriminatedUnion("chainType", [
   EvmTransactionSchema,
   SvmTransactionSchema,
+  TvmTransactionSchema,
 ]);
 
-export const TransactionWithChainSchema = z.union([
-  z.object({
-    chainType: z.literal("evm"),
-    chainId: z.number(),
-    chain: z.string(),
-    details: z.object({
-      to: z.string(),
-      data: z.string(),
-      gas: z.string().nullable(),
-      gasPrice: z.string().nullable(),
-      value: z.string(),
-    }),
-  }),
-  z.object({
-    chainType: z.literal("svm"),
-    chainId: z.number(),
-    chain: z.string(),
-    details: z.object({
-      serializedTransaction: z.string(),
-    }),
-  }),
-]);
-
+// Issues schemas
 export const AllowanceIssueSchema = z
   .object({
     actual: z.string(),
@@ -155,6 +197,7 @@ export const IssuesSchema = z.object({
   invalidBridgesPassed: z.array(z.string()),
 });
 
+// Quote and response schemas
 export const QuoteSchema = z.object({
   sellAmount: z.string(),
   buyAmount: z.string(),
@@ -168,25 +211,28 @@ export const QuoteSchema = z.object({
   quoteId: z.string(),
 });
 
-export const CrossChainQuotesResponseSchema = z.union([
-  z.object({
-    liquidityAvailable: z.literal(true),
-    allowanceTarget: z.string().nullable(),
-    originChainId: z.number(),
-    originChain: z.string(),
-    destinationChainId: z.number(),
-    destinationChain: z.string(),
-    sellToken: z.string(),
-    buyToken: z.string(),
-    issues: IssuesSchema,
-    zid: z.string(),
-    quotes: z.array(QuoteSchema).min(1),
-  }),
-  z.object({
-    liquidityAvailable: z.literal(false),
-    zid: z.string(),
-  }),
-]);
+export const CrossChainQuotesResponseSchema = z.discriminatedUnion(
+  "liquidityAvailable",
+  [
+    z.object({
+      liquidityAvailable: z.literal(true),
+      allowanceTarget: z.string().nullable(),
+      originChainId: z.number(),
+      originChain: z.string(),
+      destinationChainId: z.number(),
+      destinationChain: z.string(),
+      sellToken: z.string(),
+      buyToken: z.string(),
+      issues: IssuesSchema,
+      zid: z.string(),
+      quotes: z.array(QuoteSchema).min(1),
+    }),
+    z.object({
+      liquidityAvailable: z.literal(false),
+      zid: z.string(),
+    }),
+  ],
+);
 
 // Status schemas
 export const TransactionInfoSchema = z.object({
@@ -202,8 +248,7 @@ export const CrossChainStatusRequestSchema = z.object({
 });
 
 // Status step schemas (different from quote steps — include transactions)
-export const StatusWrapStepSchema = z.object({
-  type: z.literal("wrap"),
+const BaseWrapStatusStepSchema = z.object({
   chainId: z.number(),
   sellToken: z.string(),
   buyToken: z.string(),
@@ -211,13 +256,12 @@ export const StatusWrapStepSchema = z.object({
   transactions: z.array(TransactionInfoSchema),
 });
 
-export const StatusUnwrapStepSchema = z.object({
+export const StatusWrapStepSchema = BaseWrapStatusStepSchema.extend({
+  type: z.literal("wrap"),
+});
+
+export const StatusUnwrapStepSchema = BaseWrapStatusStepSchema.extend({
   type: z.literal("unwrap"),
-  chainId: z.number(),
-  sellToken: z.string(),
-  buyToken: z.string(),
-  amount: z.string(),
-  transactions: z.array(TransactionInfoSchema),
 });
 
 export const StatusSwapStepSchema = z.object({
@@ -247,7 +291,7 @@ export const StatusBridgeStepSchema = z.object({
   transactions: z.array(TransactionInfoSchema),
 });
 
-export const StatusStepSchema = z.union([
+export const StatusStepSchema = z.discriminatedUnion("type", [
   StatusWrapStepSchema,
   StatusUnwrapStepSchema,
   StatusSwapStepSchema,
@@ -292,10 +336,10 @@ export const CrossChainStatusResponseSchema = z.object({
   steps: z.array(StatusStepSchema),
   failure: FailureContextSchema.nullable(),
   transactions: z.array(TransactionInfoSchema),
-  retryTransaction: TransactionWithChainSchema.optional(),
   zid: z.string(),
 });
 
+// Exported types
 export type CrossChainQuotesRequest = z.infer<
   typeof CrossChainQuotesRequestSchema
 >;

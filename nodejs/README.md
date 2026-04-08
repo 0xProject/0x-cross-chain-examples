@@ -1,6 +1,6 @@
 # Cross-Chain Swap Examples
 
-This TypeScript project demonstrates how to interact with the [0x Cross-Chain API](https://docs.0x.org) to perform cross-chain token swaps between EVM chains and Solana. It includes four complete examples with real-time transaction monitoring.
+This TypeScript project demonstrates how to interact with the [0x Cross-Chain API](https://docs.0x.org) to perform cross-chain token swaps between EVM chains, Solana, and Tron. It includes six complete examples with real-time transaction monitoring.
 
 ## Example Output
 
@@ -51,7 +51,7 @@ This may take several minutes...
 
 ## What It Does
 
-This project provides four cross-chain swap examples that demonstrate the complete flow from quote to execution:
+This project provides six cross-chain swap examples that demonstrate the complete flow from quote to execution:
 
 ### Available Scripts
 
@@ -59,6 +59,8 @@ This project provides four cross-chain swap examples that demonstrate the comple
 - **`npm run solana-to-evm`** - WSOL on Solana → USDC on Base
 - **`npm run solana-to-evm-with-gas-payer`** - WSOL on Solana → USDC on Base (with gas payer)
 - **`npm run evm-to-evm`** - WETH on Base → USDC on Arbitrum
+- **`npm run tron-to-evm`** - USDT on Tron → USDC on Arbitrum
+- **`npm run evm-to-tron`** - USDC on Arbitrum → USDT on Tron
 
 ### Process Flow (All Examples)
 
@@ -89,11 +91,14 @@ Copy the example from [.env.example](./.env.example) into a new `.env` file:
 | `ZEROEX_API_KEY`          | API Key from [0x Dashboard](https://dashboard.0x.org) | ✅       | _None_                                |
 | `EVM_PRIVATE_KEY`         | EVM private key (64 hex chars, optional 0x prefix)    | ❌       | _Quote-only mode_                     |
 | `SOLANA_PRIVATE_KEY`      | Solana private key (44-character base58 format)       | ❌       | _Quote-only mode_                     |
+| `TRON_PRIVATE_KEY`        | Tron private key (64 hex chars, no 0x prefix)         | ❌       | _Quote-only mode_                     |
 | `SOLANA_RECEIVER_ADDRESS` | Solana address to receive tokens (base58 format)      | ❌\*     | _Uses default address_                |
 | `EVM_RECEIVER_ADDRESS`    | EVM address to receive tokens (hex format)            | ❌\*     | _Uses default address_                |
+| `TRON_RECEIVER_ADDRESS`   | Tron address to receive tokens (Base58Check format)   | ❌\*     | _Uses default address_                |
 | `BASE_RPC_URL`            | Base network RPC endpoint                             | ❌       | `https://mainnet.base.org`            |
 | `ARBITRUM_RPC_URL`        | Arbitrum network RPC endpoint                         | ❌       | `https://arb1.arbitrum.io/rpc`        |
 | `SOLANA_RPC_URL`          | Solana RPC endpoint                                   | ❌       | `https://api.mainnet-beta.solana.com` |
+| `TRON_RPC_URL`            | Tron full-node RPC endpoint                           | ❌       | `https://api.trongrid.io`            |
 
 _\*Required when executing transactions to prevent accidental sends to default addresses_
 
@@ -111,11 +116,19 @@ npm run solana-to-evm-with-gas-payer
 
 # EVM to EVM swap (Base ↔ Arbitrum)
 npm run evm-to-evm
+
+# Tron to EVM (USDT on Tron → USDC on Arbitrum)
+npm run tron-to-evm
+
+# EVM to Tron (USDC on Arbitrum → USDT on Tron)
+npm run evm-to-tron
 ```
 
 ## Notes
 
-- **Token amounts**: Hardcoded to small amounts (0.001 tokens) for safety - modify in source files
+- **Token amounts**: Hardcoded to small amounts for safety (0.001 WETH for EVM, 10 USDT for Tron, 5 USDC for EVM→Tron) - modify in source files
 - **Slippage**: Set to 1% (100 basis points) - adjustable per swap
 - **Monitoring**: 10-minute timeout with 5-second polling intervals
-- **Validation**: Strict private key format validation (64-char hex for EVM, 44-char base58 for Solana)
+- **Validation**: Strict private key format validation (64-char hex for EVM/Tron, 44-char base58 for Solana)
+- **Tron fees**: Tron uses energy + bandwidth instead of gas. Ensure your wallet has sufficient TRX to cover transaction fees
+- **Tron approvals**: Unlike EVM-origin swaps, Tron-origin swaps do not require a separate TRC-20 token approval step. The integrated bridge providers use direct TRC-20 transfers rather than contract-based spending patterns
